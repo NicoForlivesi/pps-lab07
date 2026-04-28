@@ -35,12 +35,14 @@ class NonEmptyParser(chars: Set[Char])
     with NonEmpty[Char]
 
 trait NotTwoConsecutive[T] extends Parser[T]:
-  abstract override def parseAll(seq: Seq[T]): Boolean =
-    @tailrec
-    def _parseAll(dummySeq: Seq[T]): Boolean = dummySeq match
-      case h :: hNext :: t => if h != hNext then _parseAll(hNext :: t) else false
-      case _ => super.parseAll(seq)
-    _parseAll(seq)
+  private[this] var last: Option[T] = None
+  abstract override def parse(t: T): Boolean =
+    val isParsable = !last.contains(t) && super.parse(t)
+    last = Some(t)
+    isParsable
+  abstract override def end: Boolean =
+    last = None
+    super.end
 
 class NotTwoConsecutiveParser(chars: Set[Char])
     extends BasicParser(chars)
@@ -61,9 +63,9 @@ class NotTwoConsecutiveParser(chars: Set[Char])
 
   // NotTwoConsecutive[Char] -> BasicParser -> Parser[Char]
   def parserNTC = new NotTwoConsecutiveParser(Set('X', 'Y', 'Z'))
-  println("Check: " + parserNTC.parseAll("XYZ".toList)) // true
-  println("Check: " + parserNTC.parseAll("XYYZ".toList)) // false
-  println("Check: " + parserNTC.parseAll("".toList)) // true
+  println("---" + parserNTC.parseAll("XYZ".toList)) // true
+  println("---" + parserNTC.parseAll("XYYZ".toList)) // false
+  println("---" + parserNTC.parseAll("".toList)) // true
 
   // note we do not need a class name here, we use the structural type
   def parserNTCNE = new BasicParser(Set('X', 'Y', 'Z'))
