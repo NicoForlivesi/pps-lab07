@@ -1,15 +1,29 @@
 package ex2
 
 type Position = (Int, Int)
-type PercentValue = Int
+
 object PercentValue:
+  opaque type PercentValue = Int
+
   def apply(n: Int): PercentValue =
     require(n >= 0 && n <= 100)
     n
 
-extension (b: PercentValue)
-  def value: Int = b
-  def decrease(n: Int): PercentValue = b - n
+  extension(b: PercentValue)
+    def value: Int = b
+    def decrease(n: Int): PercentValue = b - n
+    def toProb: Double = b / 100.0
+
+object RepeatNTimes:
+  opaque type RepeatNTimes = Int
+
+  def apply(n: Int): RepeatNTimes =
+    require(n >= 0)
+    n
+
+  extension(b: RepeatNTimes)
+    def value: Int = b
+    def subOne(): RepeatNTimes = b - 1
 
 enum Direction:
   case North, East, South, West
@@ -52,6 +66,7 @@ class LoggingRobot(val robot: Robot) extends Robot:
     robot.act()
     println(robot.toString)
 
+import PercentValue.*
 class RobotWithBattery(val robot: Robot, private var battery: PercentValue) extends Robot:
   export robot.{position, direction, turn}
   private final val decreaseAmount = 10;
@@ -60,30 +75,39 @@ class RobotWithBattery(val robot: Robot, private var battery: PercentValue) exte
     case _ =>
       battery = battery.decrease(decreaseAmount)
       robot.act()
-      println(robot.toString)
 
 class RobotCanFail(val robot: Robot, private var failChance: PercentValue) extends Robot:
   export robot.{position, direction, turn}
-  override def act(): Unit = if Math.random() >= failChance / 100.0 then robot.act() else println("Action failed due to probability")
+  override def act(): Unit = if Math.random() >= failChance.toProb then robot.act() else println("Action failed due to probability")
+
+import RepeatNTimes.*
+class RobotRepeated(val robot: Robot, private var timeToRepeat: RepeatNTimes) extends Robot:
+  export robot.{position, direction, turn}
+  private val n = timeToRepeat.value
+  override def act(): Unit = timeToRepeat.value match
+    case 0 => timeToRepeat = RepeatNTimes(n)
+    case _ =>
+      timeToRepeat = timeToRepeat.subOne()
+      robot.act()
+      act()
 
 @main def testRobot(): Unit =
-  val robot = RobotWithBattery(SimpleRobot((0, 0), Direction.North), PercentValue(100))
+  val robotLogger = LoggingRobot(SimpleRobot((0, 0), Direction.North))
+  val robot = RobotWithBattery(robotLogger, PercentValue(30))
   robot.act() // robot at (0, 1) facing North
   robot.turn(robot.direction.turnRight) // robot at (0, 1) facing East
   robot.act() // robot at (1, 1) facing East
   robot.act() // robot at (2, 1) facing East
-  robot.act()
-  robot.act()
-  robot.act()
-  robot.act()
-  robot.act()
-  robot.act()
-  robot.act()
-  robot.act() // Battery too low
   robot.act() // Battery too low
 
-  val robot2 = RobotCanFail(SimpleRobot((0, 0), Direction.North), PercentValue(50))
+  val robot2 = RobotCanFail(robotLogger, PercentValue(50))
+  println("\nRobotCanFail: ")
   robot2.act()
   robot2.act()
   robot2.act()
   robot2.act()
+
+  val robot3 = RobotRepeated(robotLogger, RepeatNTimes(3))
+  println("\nRobotRepeated: ")
+  robot3.act()
+  robot3.act()
