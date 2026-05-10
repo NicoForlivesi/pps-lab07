@@ -1,11 +1,9 @@
 package ex3
 
-object Solitaire extends App:
+object Solitaire:
   object Position:
     type Position = (Int, Int)
-    def apply(i: Int, j: Int): Position =
-      require(i >= 0 && j >= 0)
-      (i, j)
+    def apply(i: Int, j: Int): Position = (i, j)
 
   import Position.*
   type Solution = List[Position]
@@ -19,32 +17,36 @@ object Solitaire extends App:
   import Measure.*
   case class Board(width: Measure, height: Measure)
 
-  def placeMarks(board: Board): LazyList[Solution] =
+  def placeMarks(board: Board): List[Solution] =
     val start = Position(board.width / 2, board.height / 2)
 
-    def _place(current: Solution): LazyList[Solution] =
-      if current.size == board.width * board.height then LazyList(current)
+    def _place(current: Solution): List[Solution] =
+      if current.size == board.width * board.height then List(current)
       else
         for
-          next <- validMoves(current.head, current).to(LazyList)
+          next <- validMoves(current.head, current)
           solution <- _place(next :: current)
         yield solution
 
     def validMoves(pos: Position, current: Solution): List[Position] =
-      val offsets = List((2, 0), (-2, 0), (0, 2), (0, -2), (1, 1), (1, -1), (-1, 1), (-1, -1))
+      val (x, y) = pos
+      val next =
+        List(
+          (0, y), (board.width - 1, y),
+          (x, 0), (x, board.height - 1),
+          (x + 1, y + 1), (x + 1, y - 1),
+          (x - 1, y + 1), (x - 1, y - 1)
+        )
       for
-        (dx, dy) <- offsets
-        newX = pos._1 + dx
-        newY = pos._2 + dy
-        if newX >= 0 && newX < board.width
-        if newY >= 0 && newY < board.height
-        newPos = (newX, newY)
-        if !current.contains(newPos)
-      yield newPos
+        (nx, ny) <- next
+        if 0 <= nx && nx < board.width
+        if 0 <= ny && ny < board.height
+        if !current.contains((nx, ny))
+      yield (nx, ny)
 
     _place(List(start))
 
-  def render(solution: Seq[(Int, Int)], width: Int, height: Int): String =
+  def render(solution: Solution, width: Measure, height: Measure): String =
     val reversed = solution.reverse
     val rows =
       for y <- 0 until height
@@ -54,10 +56,10 @@ object Solitaire extends App:
       yield row.mkString
     rows.mkString("\n")
 
-
-  println(render(solution = Seq((0, 0), (2, 1)), width = 3, height = 3))
-
   @main
   def printSolutions(): Unit =
-    val solutions = placeMarks(Board(5, 5)).foreach(s =>
-      println("Possible solution: \n" + render(s, 5, 5)))
+    val solutions = placeMarks(Board(3, 3))
+    if solutions.isEmpty then
+      println("No solution found")
+    else
+      solutions.foreach(s => println("Possible solution: \n" + render(s, 3, 3)))
